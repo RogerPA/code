@@ -19,38 +19,58 @@ class FakeRepository(repository.AbstractRepository):
 
 
 class FakeUnitOfWork(unit_of_work.AbstractUnitOfWork):
-    ...
 
+    def __init__(self):
+        self.batches = FakeRepository([])
+        self.commited = False
+
+    def commit(self):
+        self.committed = True
+
+    def rollback(self):
+        pass
+
+
+class FakeUnitOfWorkStater(unit_of_work.AbstractUnitOfWorkStarter):
+
+    def __init__(self):
+        self.unit_of_work = FakeUnitOfWork()
+
+    def __enter__(self):
+        return self.unit_of_work
+
+    def __exit__(self, type, value, traceback):
+        pass
 
 
 def test_add_batch():
-    uow = FakeUnitOfWork()
+    # uow = FakeUnitOfWork()
     # fake_uow_starter = FakeUoWContextManager(uow) ?
     # fake_uow_starter = contextlib.nullcontext(uow) ?
     # services.add_batch("b1", "CRUNCHY-ARMCHAIR", 100, None, fake_uow_starter)
-    assert uow.batches.get("b1") is not None
-    assert uow.committed
+    fake_uow_starter = FakeUnitOfWorkStater()
+    services.add_batch("b1", "CRUNCHY-ARMCHAIR", 100, None, fake_uow_starter)
+    assert fake_uow_starter.unit_of_work.batches.get("b1") is not None
+    assert fake_uow_starter.unit_of_work.committed
 
-@pytest.mark.skip('unskip and fix when ready')
+
 def test_allocate_returns_allocation():
-    uow = FakeUnitOfWork()
-    services.add_batch("batch1", "COMPLICATED-LAMP", 100, None, uow)
-    result = services.allocate("o1", "COMPLICATED-LAMP", 10, uow)
+    fake_uow_starter = FakeUnitOfWorkStater()
+    services.add_batch("batch1", "COMPLICATED-LAMP", 100, None, fake_uow_starter)
+    result = services.allocate("o1", "COMPLICATED-LAMP", 10, fake_uow_starter)
     assert result == "batch1"
 
 
-@pytest.mark.skip('unskip and fix when ready')
 def test_allocate_errors_for_invalid_sku():
-    uow = FakeUnitOfWork()
-    services.add_batch("b1", "AREALSKU", 100, None, uow)
+    fake_uow_starter = FakeUnitOfWorkStater()
+    services.add_batch("b1", "AREALSKU", 100, None, fake_uow_starter)
 
     with pytest.raises(services.InvalidSku, match="Invalid sku NONEXISTENTSKU"):
-        services.allocate("o1", "NONEXISTENTSKU", 10, uow)
+        services.allocate("o1", "NONEXISTENTSKU", 10, fake_uow_starter)
 
 
-@pytest.mark.skip('unskip and fix when ready')
 def test_allocate_commits():
-    uow = FakeUnitOfWork()
-    services.add_batch("b1", "OMINOUS-MIRROR", 100, None, uow)
-    services.allocate("o1", "OMINOUS-MIRROR", 10, uow)
-    assert uow.committed
+    fake_uow_starter = FakeUnitOfWorkStater()
+    services.add_batch("b1", "OMINOUS-MIRROR", 100, None, fake_uow_starter)
+    services.allocate("o1", "OMINOUS-MIRROR", 10, fake_uow_starter)
+    assert fake_uow_starter.unit_of_work.committed

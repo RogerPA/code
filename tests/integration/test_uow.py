@@ -29,7 +29,12 @@ def test_uow_can_retrieve_a_batch_and_allocate_to_it(session_factory):
     insert_batch(session, 'batch1', 'HIPSTER-WORKBENCH', 100, None)
     session.commit()
 
-    pytest.fail('decide what your UoW looks like first?')
+    with unit_of_work.UnitOfWorkStarter(session_factory) as uow:
+        batch = uow.batches.get(reference="batch1")
+        line = model.OrderLine("o1", "HIPSTER-WORKBENCH", 10)
+        batch.allocate(line)
+        uow.commit()
+
     # either:
     # uow = unit_of_work.SqlAlchemyUnitOfWork(session_factory)
     # with uow:
@@ -46,10 +51,8 @@ def test_uow_can_retrieve_a_batch_and_allocate_to_it(session_factory):
     assert batchref == 'batch1'
 
 
-'''
-# uncomment and fix these when ready
 def test_rolls_back_uncommitted_work_by_default(session_factory):
-    uow = unit_of_work.SqlAlchemyUnitOfWork(session_factory)
+    uow = unit_of_work.UnitOfWorkStarter(session_factory)
     with uow:
         insert_batch(uow.session, 'batch1', 'MEDIUM-PLINTH', 100, None)
 
@@ -62,7 +65,7 @@ def test_rolls_back_on_error(session_factory):
     class MyException(Exception):
         pass
 
-    uow = unit_of_work.SqlAlchemyUnitOfWork(session_factory)
+    uow = unit_of_work.UnitOfWorkStarter(session_factory)
     with pytest.raises(MyException):
         with uow:
             insert_batch(uow.session, 'batch1', 'LARGE-FORK', 100, None)
@@ -71,4 +74,3 @@ def test_rolls_back_on_error(session_factory):
     new_session = session_factory()
     rows = list(new_session.execute('SELECT * FROM "batches"'))
     assert rows == []
-'''
