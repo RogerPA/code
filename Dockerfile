@@ -10,6 +10,7 @@ RUN apk del --no-cache .build-deps
 
 RUN mkdir -p /src
 COPY src/ /src/
+RUN python -m pip install --upgrade pip
 RUN pip install -e /src
 COPY tests/ /tests/
 
